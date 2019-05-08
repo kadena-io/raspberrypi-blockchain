@@ -1,0 +1,32 @@
+(env-keys ["admin"])
+(env-data {"admin-keyset": {"keys": ["admin"]}})
+
+(begin-tx)
+(env-keys ["admin"])
+(load "raspberrypi.pact")
+(commit-tx)
+
+(begin-tx)
+(use raspberrypi)
+(read-temp-humidity)
+(env-keys ["admin"])
+(update-temp-humidity 25.0 60.5 (time "2016-07-22T11:26:35Z") "admin-keyset")
+(commit-tx)
+
+(begin-tx)
+(use raspberrypi)
+(logs)
+(commit-tx)
+
+(begin-tx)
+(use raspberrypi)
+(read-temp-humidity)
+(env-keys ["zehra"])
+(expect-failure "keyset is not admin-keyset"
+ (update-temp-humidity 29.0 80.5 (time "2016-07-22T11:26:35Z") "admin-keyset"))
+(commit-tx)
+
+(begin-tx)
+(use raspberrypi)
+(logs)
+(commit-tx)
