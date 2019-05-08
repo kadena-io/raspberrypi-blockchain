@@ -1,5 +1,6 @@
 import sys
 import time
+import datetime
 
 import Adafruit_DHT
 
@@ -10,6 +11,10 @@ from pypact.adapters import BasePactAdapter
 sample_freq = 2  # 20 minutes in seconds
 sensor = Adafruit_DHT.DHT22
 pin = 16
+
+
+def format_current_time():
+    return datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def read_sensor_data():
@@ -25,10 +30,10 @@ def send_sensor_data(temp, humidity):
     code = BasePactAdapter.build_code(
         "raspberrypi",
         "update-temp-humidity",
-        "(read-keyset 'admin-keyset)",
+        "admin-keyset",
         **{"temp": temp, "humidity": humidity}
     )
-    result = api.send_and_listen(code)
+    result = api.send_and_listen(code, "admin-keyset")
     print(result)
 
 

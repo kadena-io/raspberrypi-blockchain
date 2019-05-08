@@ -1,18 +1,22 @@
 import unittest
+from datetime import datetime
 
 from pypact import BasePactAdapter
 from pypact import api
 
 
 class TestPyPact(unittest.TestCase):
-    def test_build_code(self):
+    def test_update_temp_humidity(self):
+        kwargs = {
+            "temp": 35.5, "humidity": 45.5,
+            "keyset_name": "admin-keyset",
+            "time": datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+        }
         code = BasePactAdapter.build_code(
-            "transfer-manager",
-            "is-address-in-whitelist",
-            "(read-keyset 'issuer-admin-keyset)",
-            **{"address": "zehra"}
+            "raspberrypi", "update-temp-humidity",
+            "admin-keyset", **kwargs
         )
-        self.assertFalse(api.send_and_listen(code), "Address is in whitelist")
+        print(api.send_and_listen(code, "admin-keyset"))
 
 
 if __name__ == '__main__':
