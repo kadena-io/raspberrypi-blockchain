@@ -14,8 +14,8 @@
 
  (defun update-temp-humidity ( temperature:decimal
                                humidity:decimal
-                               time:time
-                               keyset:string )
+                               keyset:string
+                               time:time )
   @doc "updates temperature and humidity values for every 20 minutes"
   (enforce-keyset (read-keyset "admin-keyset"))
   (write temp-humidity-table "1"
