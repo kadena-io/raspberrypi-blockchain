@@ -1,5 +1,6 @@
 import sys
 import time
+from pprint import pprint
 from datetime import datetime
 
 import Adafruit_DHT
@@ -48,7 +49,7 @@ def print_log():
     )
     print(code)
     result = api.send_and_listen(code, "admin-keyset")
-    print(result)
+    pprint(result, indent=2)
 
 
 def main():
@@ -65,3 +66,4 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\n", "Stopping script...")
         sys.exit()
+
