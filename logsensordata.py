@@ -32,7 +32,19 @@ def send_sensor_data(temp, humidity):
         "update-temp-humidity",
         "admin-keyset",
         **{"temp": temp, "humidity": humidity,
-           "keyset_name": "admin-keyset"}
+           "keyset_name": "admin-keyset",
+           "time": format_current_time()}
+    )
+    print(code)
+    result = api.send_and_listen(code, "admin-keyset")
+    print(result)
+
+
+def print_log():
+    code = BasePactAdapter.build_code(
+        "raspberrypi",
+        "logs",
+        "admin-keyset"
     )
     print(code)
     result = api.send_and_listen(code, "admin-keyset")
@@ -48,6 +60,7 @@ def main():
 
 if __name__ == "__main__":
     try:
+        print_log()
         main()
     except KeyboardInterrupt:
         print("\n", "Stopping script...")
