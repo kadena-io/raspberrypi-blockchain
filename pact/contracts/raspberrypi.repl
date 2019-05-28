@@ -8,9 +8,9 @@
 
 (begin-tx)
 (use raspberrypi)
-(read-temp-humidity)
+(read-temp-humidity-gps)
 (env-keys ["admin"])
-(update-temp-humidity 25.0 60.5 (time "2016-07-22T11:26:35Z") "admin-keyset")
+(update-temp-humidity-gps 25.0 60.5  10.123 40.55556 (time "2016-07-22T11:26:35Z") "admin-keyset")
 (commit-tx)
 
 (begin-tx)
@@ -20,10 +20,10 @@
 
 (begin-tx)
 (use raspberrypi)
-(read-temp-humidity)
+(read-temp-humidity-gps)
 (env-keys ["zehra"])
 (expect-failure "keyset is not admin-keyset"
- (update-temp-humidity 29.0 80.5 (time "2016-07-22T11:26:35Z") "admin-keyset"))
+ (update-temp-humidity-gps 29.0 80.5  20.4447 26.783 (time "2016-07-22T11:26:35Z") "admin-keyset"))
 (commit-tx)
 
 (begin-tx)
