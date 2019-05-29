@@ -2,6 +2,7 @@ import sys
 import time
 import threading
 import pynmea2
+import serial, string
 import os
 from pprint import pprint
 from datetime import datetime
@@ -11,6 +12,9 @@ import Adafruit_DHT
 from pypact import api
 from pypact.adapters import BasePactAdapter
 
+ser = serial.Serial("/dev/ttyAMA0")  # Select your Serial Port
+ser.baudrate = 9600  # Baud rate
+ser.timeout = 50
 
 sample_freq = 10  # 20 minutes in seconds
 sensor = Adafruit_DHT.DHT22
