@@ -6,21 +6,24 @@ import serial, string
 import os
 from pprint import pprint
 from datetime import datetime
-from GPS_API import *
-
+from threading import Timer
 import Adafruit_DHT
 
 from pypact import api
 from pypact.adapters import BasePactAdapter
 
-ser = serial.Serial("/dev/ttyAMA0")  # Select your Serial Port
-ser.baudrate = 9600  # Baud rate
-ser.timeout = 50
-msgdata = Message() # Creates a Message Instance
 
-sample_freq = 10  # 20 minutes in seconds
+sample_freq = 1  # 20 minutes in seconds
 sensor = Adafruit_DHT.DHT22
 pin = 16
+
+ser = 0
+latitude=''
+longitude=''
+ser = serial.Serial("/dev/ttyUSB0")  # Select your Serial Port
+ser.baudrate = 9600  # Baud rate
+ser.timeout = 50
+ser.timeout = 1
 
 
 def format_current_time():
@@ -43,8 +46,8 @@ def send_sensor_data(temp, humidity, latitude, longitude):
         "admin-keyset",
         **{"temp": temp, "humidity": humidity,
            "latitude": latitude, "longitude": longitude,
-           "keyset_name": "admin-keyset",
-           "time": format_current_time()}
+           "time": format_current_time(),
+           "keyset_name": "admin-keyset"}
     )
     print(code)
     result = api.send_and_listen(code, "admin-keyset")
@@ -61,21 +64,27 @@ def print_log():
     result = api.send_and_listen(code, "admin-keyset")
     pprint(result, indent=2)
 
+
+       
 def main():
     while True:
         temp, humidity = read_sensor_data()
-        start_gps_receiver(ser, msgdata)
-        print(msgdata.msg)
-        ready_gps_receiver(msgdata)
-        latitude = get_latitude(msgdata.msg)
-        longitude = get_longitude(msgdata.msg)
-        send_sensor_data(temp, humidity, latitude, longitude)
+        if ser.inWaiting() > 0 :
+            recv=ser.readline().decode('utf-8')
+            #print(recv)
+            if recv.find('$GPGGA')!=-1:
+                msg=pynmea2.parse(recv)
+                #print (msg.timestamp)
+                
+                latitude=msg.latitude
+                longitude=msg.longitude
+                send_sensor_data(temp, humidity, latitude, longitude)
         time.sleep(sample_freq)
 
 
 if __name__ == "__main__":
     try:
-        print_log()
+        #print_log()
         main()
     except KeyboardInterrupt:
         print("\n", "Stopping script...")
