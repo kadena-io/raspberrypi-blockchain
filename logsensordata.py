@@ -1,25 +1,23 @@
 import sys
 import time
-import threading
-import pynmea2
-import serial, string
+import webbrowser
+import serial
+import string
 import os
 from pprint import pprint
 from datetime import datetime
-from threading import Timer
+
+import pynmea2
 import Adafruit_DHT
 
 from pypact import api
-from pypact.adapters import BasePactAdapter
+from pypact.adapters import CommandFactory
 
 
-sample_freq = 1  # 20 minutes in seconds
+sample_freq = 5  # 20 minutes in seconds
 sensor = Adafruit_DHT.DHT22
 pin = 16
 
-ser = 0
-latitude=''
-longitude=''
 ser = serial.Serial("/dev/ttyUSB0")  # Select your Serial Port
 ser.baudrate = 9600  # Baud rate
 ser.timeout = 50
@@ -28,6 +26,10 @@ ser.timeout = 1
 
 def format_current_time():
     return datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def quote_string(value):
+   return f'"{str(value)}"'
 
 
 def read_sensor_data():
@@ -40,30 +42,35 @@ def read_sensor_data():
 
 def send_sensor_data(temp, humidity, latitude, longitude):
     """Sends data to pact server to be saved on blockchain"""
-    code = BasePactAdapter.build_code(
-        "raspberrypi",
+    print(latitude, longitude)
+    code = CommandFactory(
         "update-temp-humidity-gps",
-        "admin-keyset",
-        **{"temp": temp, "humidity": humidity,
-           "latitude": latitude, "longitude": longitude,
-           "time": format_current_time(),
-           "keyset_name": "admin-keyset"}
-    )
+        "raspberrypi",
+        **{"temp": str(temp),
+           "humidity": str(humidity),
+           "latitude": str(latitude),
+           "longitude": str(longitude),
+           "time": '(time "%s")' %format_current_time(),
+           "keyset_name": quote_string("admin-keyset")}
+    ).build_code()
     print(code)
     result = api.send_and_listen(code, "admin-keyset")
     print(result)
 
 
 def print_log():
-    code = BasePactAdapter.build_code(
-        "raspberrypi",
+    code = CommandFactory(
         "logs",
-        "admin-keyset"
-    )
+        "raspberrypi"
+    ).build_code()
     print(code)
     result = api.send_and_listen(code, "admin-keyset")
     pprint(result, indent=2)
 
+
+def open_gmaps(GPS_coordinates):
+    gmaps = 'http://www.google.com/maps/place/'
+    webbrowser.open(gmaps + GPS_coordinates)
 
        
 def main():
@@ -73,18 +80,24 @@ def main():
             recv=ser.readline().decode('utf-8')
             #print(recv)
             if recv.find('$GPGGA')!=-1:
-                msg=pynmea2.parse(recv)
+                msg = pynmea2.parse(recv)
                 #print (msg.timestamp)
+                latitude = str(msg.latitude)
+                longitude = str(msg.longitude)
                 
-                latitude=msg.latitude
-                longitude=msg.longitude
+                if msg.lat_dir == 'S':
+                    latitude = '-' + latitude
+                if msg.lon_dir == 'W':
+                    longitude = '-' + longitude
+                
                 send_sensor_data(temp, humidity, latitude, longitude)
+                open_gmaps(latitude + ',' + longitude)
         time.sleep(sample_freq)
 
 
 if __name__ == "__main__":
     try:
-        #print_log()
+        print_log()
         main()
     except KeyboardInterrupt:
         print("\n", "Stopping script...")
