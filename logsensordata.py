@@ -13,7 +13,6 @@ import Adafruit_DHT
 from pypact import api
 from pypact.adapters import CommandFactory
 
-
 sample_freq = 5  # 20 minutes in seconds
 sensor = Adafruit_DHT.DHT22
 pin = 16
@@ -21,7 +20,6 @@ pin = 16
 ser = serial.Serial("/dev/ttyUSB0")  # Select your Serial Port
 ser.baudrate = 9600  # Baud rate
 ser.timeout = 50
-ser.timeout = 1
 
 
 def format_current_time():
@@ -42,7 +40,7 @@ def read_sensor_data():
 
 def send_sensor_data(temp, humidity, latitude, longitude):
     """Sends data to pact server to be saved on blockchain"""
-    print(latitude, longitude)
+    current_time = format_current_time()
     code = CommandFactory(
         "update-temp-humidity-gps",
         "raspberrypi",
@@ -50,15 +48,18 @@ def send_sensor_data(temp, humidity, latitude, longitude):
            "humidity": str(humidity),
            "latitude": str(latitude),
            "longitude": str(longitude),
-           "time": '(time "%s")' %format_current_time(),
+           "time": '(time "%s")' %current_time,
            "keyset_name": quote_string("admin-keyset")}
     ).build_code()
-    print(code)
     result = api.send_and_listen(code, "admin-keyset")
+    print(f'temperature: {temp} humidity: {humidity} latitude: {latitude} longitude: {longitude} time: {current_time}')
     print(result)
 
 
 def print_log():
+    print(30 * "=")
+    print("  Historical data on Blockchain")
+    print(30 * "=")
     code = CommandFactory(
         "logs",
         "raspberrypi"
@@ -66,6 +67,7 @@ def print_log():
     print(code)
     result = api.send_and_listen(code, "admin-keyset")
     pprint(result, indent=2)
+    print(30 * "=")
 
 
 def open_gmaps(GPS_coordinates):
@@ -74,11 +76,16 @@ def open_gmaps(GPS_coordinates):
 
        
 def main():
+    print("Starting to record humidity, temperature and GPS data on Blockchain...")
+    print()
     while True:
         temp, humidity = read_sensor_data()
         if ser.inWaiting() > 0 :
-            recv=ser.readline().decode('utf-8')
-            #print(recv)
+            try:
+                recv=ser.readline().decode('utf-8')
+            except UnicodeDecodeError:
+                print("Could not read GPS data")
+                continue
             if recv.find('$GPGGA')!=-1:
                 msg = pynmea2.parse(recv)
                 #print (msg.timestamp)
@@ -96,9 +103,15 @@ def main():
 
 
 if __name__ == "__main__":
+    args = sys.argv
+    show_history = False
+    if len(args) >= 2:
+        show_history = True
     try:
-        print_log()
-        main()
+        if show_history:
+            print_log()
+        else:
+            main()
     except KeyboardInterrupt:
         print("\n", "Stopping script...")
         sys.exit()
