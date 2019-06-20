@@ -2,8 +2,6 @@ import sys
 import time
 import webbrowser
 import serial
-import string
-import os
 from pprint import pprint
 from datetime import datetime
 
@@ -12,6 +10,7 @@ import Adafruit_DHT
 
 from pypact import api
 from pypact.adapters import CommandFactory
+
 
 sample_freq = 5  # 20 minutes in seconds
 sensor = Adafruit_DHT.DHT22
@@ -23,15 +22,27 @@ ser.timeout = 50
 
 
 def format_current_time():
+    """
+    Format current time for pact
+    :return:
+    """
     return datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def quote_string(value):
-   return f'"{str(value)}"'
+    """
+    Add quotes to the value
+    :param value:
+    :return: quoted string value
+    """
+    return f'"{str(value)}"'
 
 
 def read_sensor_data():
-    """Read humidity and temperature from the sensor and returns it"""
+    """
+    Read humidity and temperature from sensor
+    :return: temp, humidity or "Failed to read sensor data!"
+    """
     humidity, temp = Adafruit_DHT.read_retry(sensor, pin)
     if temp and humidity:
         return temp, humidity
@@ -39,7 +50,14 @@ def read_sensor_data():
 
 
 def send_sensor_data(temp, humidity, latitude, longitude):
-    """Sends data to pact server to be saved on blockchain"""
+    """
+    Send data to pact server to be saved on blockchain
+    :param temp:
+    :param humidity:
+    :param latitude:
+    :param longitude:
+    :return: None
+    """
     current_time = format_current_time()
     code = CommandFactory(
         "update-temp-humidity-gps",
@@ -48,15 +66,60 @@ def send_sensor_data(temp, humidity, latitude, longitude):
            "humidity": str(humidity),
            "latitude": str(latitude),
            "longitude": str(longitude),
-           "time": '(time "%s")' %current_time,
+           "time": f'(time "{current_time}")',
            "keyset_name": quote_string("admin-keyset")}
     ).build_code()
     result = api.send_and_listen(code, "admin-keyset")
-    print(f'temperature: {temp} humidity: {humidity} latitude: {latitude} longitude: {longitude} time: {current_time}')
+    print(f'temperature: {temp} humidity: {humidity} latitude: {latitude} '
+          f'longitude: {longitude} time: {current_time}')
     print(result)
 
 
-def print_log():
+def read_gps_data():
+    """
+    Read GPS data from serial port. If could't read GPS data returns None
+    :return: gps_data or None
+    """
+    try:
+        gps_data = ser.readline().decode('utf-8')
+        return gps_data
+    except UnicodeDecodeError:
+        print("Could not read GPS data")
+
+
+def parse_gps_data(gps_data):
+    """
+    Parse gps data, transform latitude and longitude for google maps
+    to show exact location.
+    :param gps_data:
+    :return: latitude, longitude
+    """
+    msg = pynmea2.parse(gps_data)
+    # print(msg.timestamp)
+    latitude = str(msg.latitude)
+    longitude = str(msg.longitude)
+
+    if msg.lat_dir == 'S':
+        latitude = '-' + latitude
+    if msg.lon_dir == 'W':
+        longitude = '-' + longitude
+    return latitude, longitude
+
+
+def open_google_maps(coordinates):
+    """
+    Open google maps on the browser with the coordinates
+    :param coordinates:
+    :return: None
+    """
+    webbrowser.open('http://www.google.com/maps/place/' + coordinates)
+
+
+def print_historical_data():
+    """
+    Print data stored on Blockchain in a pretty format
+    :return: None
+    """
     print(30 * "=")
     print("  Historical data on Blockchain")
     print(30 * "=")
@@ -70,35 +133,25 @@ def print_log():
     print(30 * "=")
 
 
-def open_gmaps(GPS_coordinates):
-    gmaps = 'http://www.google.com/maps/place/'
-    webbrowser.open(gmaps + GPS_coordinates)
-
-       
 def main():
+    """
+    Loop infinite, call read_sensor_data(), read_gps_data() functions and
+    send their data to Blockchain. Call open_google_maps() to show coordinates
+     on google maps. Wait for sample freq.
+    :return: None
+    """
     print("Starting to record humidity, temperature and GPS data on Blockchain...")
     print()
     while True:
         temp, humidity = read_sensor_data()
-        if ser.inWaiting() > 0 :
-            try:
-                recv=ser.readline().decode('utf-8')
-            except UnicodeDecodeError:
-                print("Could not read GPS data")
+        if ser.inWaiting() > 0:
+            gps_data = read_gps_data()
+            if gps_data is None:
                 continue
-            if recv.find('$GPGGA')!=-1:
-                msg = pynmea2.parse(recv)
-                #print (msg.timestamp)
-                latitude = str(msg.latitude)
-                longitude = str(msg.longitude)
-                
-                if msg.lat_dir == 'S':
-                    latitude = '-' + latitude
-                if msg.lon_dir == 'W':
-                    longitude = '-' + longitude
-                
+            if gps_data.find('$GPGGA') != -1:
+                latitude, longitude = parse_gps_data(gps_data)
                 send_sensor_data(temp, humidity, latitude, longitude)
-                open_gmaps(latitude + ',' + longitude)
+                open_google_maps(latitude + ',' + longitude)
         time.sleep(sample_freq)
 
 
@@ -109,7 +162,7 @@ if __name__ == "__main__":
         show_history = True
     try:
         if show_history:
-            print_log()
+            print_historical_data()
         else:
             main()
     except KeyboardInterrupt:

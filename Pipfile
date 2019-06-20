@@ -7,6 +7,9 @@ verify_ssl = true
 
 [packages]
 requests = "*"
+pyserial = "*"
+pynmea2 = "*"
+adafruit-dht = "*"
 
 [requires]
 python_version = "3.7"

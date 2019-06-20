@@ -1,0 +1,10 @@
+adafruit-dht==1.4.0
+certifi==2019.6.16
+chardet==3.0.4
+ed25519==1.5
+idna==2.8
+pynmea2==1.15.0
+pypact==0.5
+pyserial==3.4
+requests==2.22.0
+urllib3==1.25.3
